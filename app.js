@@ -1,12 +1,7 @@
-/* =========================================================
-   TALKLIFE — APP.JS
-   Main frontend functionality
-   ========================================================= */
-
 "use strict";
 
 /* =========================================================
-   GLOBAL STATE
+   TALKLIFE — APP.JS
    ========================================================= */
 
 const state = {
@@ -48,7 +43,7 @@ const state = {
         avatar: "FW"
       },
       text:
-        "When your friend says: 'I will send the money tomorrow' 😂😂",
+        "When your friend says: I will send the money tomorrow 😂😂",
       likes: 387,
       comments: 42,
       shares: 31,
@@ -77,18 +72,14 @@ const state = {
     }
   ],
 
-  notifications: [],
-
-  currentPage: "home",
-
   searchQuery: "",
-
+  currentPage: "home",
   isLoggedIn: false
 };
 
 
 /* =========================================================
-   DOM HELPERS
+   HELPERS
    ========================================================= */
 
 function $(selector) {
@@ -98,11 +89,6 @@ function $(selector) {
 function $$(selector) {
   return document.querySelectorAll(selector);
 }
-
-
-/* =========================================================
-   SAFE HTML
-   ========================================================= */
 
 function escapeHTML(value) {
   return String(value)
@@ -115,7 +101,7 @@ function escapeHTML(value) {
 
 
 /* =========================================================
-   STORAGE
+   LOCAL STORAGE
    ========================================================= */
 
 function saveState() {
@@ -125,16 +111,14 @@ function saveState() {
       JSON.stringify(state)
     );
   } catch (error) {
-    console.warn("Could not save TalkLife state:", error);
+    console.warn("Storage error:", error);
   }
 }
 
-
 function loadState() {
   try {
-    const saved = localStorage.getItem(
-      "talklife_state"
-    );
+    const saved =
+      localStorage.getItem("talklife_state");
 
     if (!saved) return;
 
@@ -142,7 +126,7 @@ function loadState() {
 
     Object.assign(state, parsed);
   } catch (error) {
-    console.warn("Could not load TalkLife state:", error);
+    console.warn("Could not load saved state:", error);
   }
 }
 
@@ -155,12 +139,10 @@ function showToast(
   message,
   type = "success"
 ) {
-  const oldToast =
+  const old =
     document.querySelector(".notification");
 
-  if (oldToast) {
-    oldToast.remove();
-  }
+  if (old) old.remove();
 
   const toast =
     document.createElement("div");
@@ -169,7 +151,7 @@ function showToast(
     `notification ${type}`;
 
   toast.innerHTML = `
-    <span>
+    <span style="font-weight:900;">
       ${
         type === "success"
           ? "✓"
@@ -188,68 +170,44 @@ function showToast(
 
   setTimeout(() => {
     toast.style.opacity = "0";
-    toast.style.transform =
-      "translateY(-10px)";
 
     setTimeout(() => {
       toast.remove();
     }, 250);
-  }, 3000);
+  }, 2800);
 }
 
 
 /* =========================================================
-   NAVIGATION
+   POST FILTER
    ========================================================= */
 
-function navigate(page) {
-  state.currentPage = page;
+function filterPosts(query) {
+  const clean =
+    String(query || "")
+      .trim()
+      .toLowerCase();
 
-  $$(".nav a").forEach(link => {
-    link.classList.remove("active");
-
-    if (
-      link.dataset.page === page
-    ) {
-      link.classList.add("active");
-    }
-  });
-
-  $$(".mobile-nav-item").forEach(item => {
-    item.classList.remove("active");
-
-    if (
-      item.dataset.page === page
-    ) {
-      item.classList.add("active");
-    }
-  });
-
-  const target =
-    document.querySelector(
-      `[data-section="${page}"]`
-    );
-
-  if (target) {
-    target.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
+  if (!clean) {
+    return state.posts;
   }
 
-  saveState();
+  return state.posts.filter(post => {
+    return (
+      post.text.toLowerCase().includes(clean) ||
+      post.user.name.toLowerCase().includes(clean) ||
+      post.user.username.toLowerCase().includes(clean)
+    );
+  });
 }
 
 
 /* =========================================================
-   POST RENDER
+   RENDER POSTS
    ========================================================= */
 
-function renderPosts(
-  posts = state.posts
-) {
-  const feed =
-    document.querySelector(".feed");
+function renderPosts(posts = state.posts) {
+  const feed = $(".feed");
 
   if (!feed) return;
 
@@ -259,7 +217,9 @@ function renderPosts(
     feed.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon">🔎</div>
+
         <h3>No posts found</h3>
+
         <p>
           Try another search.
         </p>
@@ -274,8 +234,6 @@ function renderPosts(
       createPostElement(post)
     );
   });
-
-  attachPostEvents();
 }
 
 
@@ -287,11 +245,9 @@ function createPostElement(post) {
   const article =
     document.createElement("article");
 
-  article.className =
-    "post-card";
+  article.className = "post-card";
 
-  article.dataset.postId =
-    post.id;
+  article.dataset.postId = post.id;
 
   const media =
     post.type === "video"
@@ -314,24 +270,21 @@ function createPostElement(post) {
       <div class="post-user">
 
         <div class="avatar">
-          ${escapeHTML(
-            post.user.avatar
-          )}
+          ${escapeHTML(post.user.avatar)}
         </div>
 
         <div class="user-info">
+
           <strong>
-            ${escapeHTML(
-              post.user.name
-            )}
+            ${escapeHTML(post.user.name)}
           </strong>
 
           <span>
-            ${escapeHTML(
-              post.user.username
-            )}
-            · ${escapeHTML(post.time)}
+            ${escapeHTML(post.user.username)}
+            ·
+            ${escapeHTML(post.time)}
           </span>
+
         </div>
 
       </div>
@@ -397,67 +350,76 @@ function createPostElement(post) {
 
 
 /* =========================================================
-   POST EVENTS
+   POST ACTIONS
    ========================================================= */
 
-function attachPostEvents() {
-  $$(".post-card").forEach(card => {
+document.addEventListener("click", event => {
+  const button =
+    event.target.closest("[data-action]");
 
-    card.addEventListener(
-      "click",
-      event => {
+  if (!button) return;
 
-        const button =
-          event.target.closest(
-            "[data-action]"
-          );
+  const action =
+    button.dataset.action;
 
-        if (!button) return;
+  const card =
+    button.closest(".post-card");
 
-        const action =
-          button.dataset.action;
+  const postId =
+    card?.dataset.postId;
 
-        const postId =
-          card.dataset.postId;
-
-        const post =
-          state.posts.find(
-            item =>
-              item.id === postId
-          );
-
-        if (!post) return;
-
-        switch (action) {
-
-          case "like":
-            toggleLike(post);
-            break;
-
-          case "comment":
-            openComments(post);
-            break;
-
-          case "share":
-            sharePost(post);
-            break;
-
-          case "save":
-            toggleSave(post);
-            break;
-
-          case "play-video":
-            playVideo(post);
-            break;
-
-          case "post-menu":
-            openPostMenu(post);
-            break;
-        }
-      }
+  const post =
+    state.posts.find(
+      item => item.id === postId
     );
-  });
-}
+
+  switch (action) {
+
+    case "like":
+      if (post) toggleLike(post);
+      break;
+
+    case "comment":
+      if (post) openComments(post);
+      break;
+
+    case "share":
+      if (post) sharePost(post);
+      break;
+
+    case "save":
+      if (post) toggleSave(post);
+      break;
+
+    case "play-video":
+      if (post) playVideo(post);
+      break;
+
+    case "post-menu":
+      if (post) openPostMenu(post);
+      break;
+
+    case "create-post":
+      openCreatePost();
+      break;
+
+    case "login":
+      openLogin();
+      break;
+
+    case "signup":
+      openSignup();
+      break;
+
+    case "profile":
+      openProfile();
+      break;
+
+    case "logout":
+      logout();
+      break;
+  }
+});
 
 
 /* =========================================================
@@ -465,6 +427,7 @@ function attachPostEvents() {
    ========================================================= */
 
 function toggleLike(post) {
+
   if (post.liked) {
     post.likes =
       Math.max(0, post.likes - 1);
@@ -493,6 +456,7 @@ function toggleLike(post) {
    ========================================================= */
 
 function toggleSave(post) {
+
   post.saved = !post.saved;
 
   saveState();
@@ -515,47 +479,45 @@ function toggleSave(post) {
 
 async function sharePost(post) {
 
-  const shareText =
+  const text =
     `${post.text}\n\nShared from TalkLife`;
 
   try {
 
-    if (
-      navigator.share
-    ) {
+    if (navigator.share) {
 
       await navigator.share({
         title: "TalkLife",
-        text: shareText
+        text
       });
 
-    } else if (
-      navigator.clipboard
-    ) {
+    } else if (navigator.clipboard) {
 
-      await navigator.clipboard.writeText(
-        shareText
-      );
+      await navigator.clipboard.writeText(text);
 
       showToast(
         "Post copied to clipboard"
       );
+
     } else {
 
       showToast(
-        "Share is not supported",
+        "Sharing is not supported",
         "error"
       );
+
     }
 
     post.shares++;
 
     saveState();
 
-  } catch (error) {
-    console.log(
-      "Share cancelled"
+    renderPosts(
+      filterPosts(state.searchQuery)
     );
+
+  } catch {
+    console.log("Share cancelled");
   }
 }
 
@@ -574,18 +536,21 @@ function openComments(post) {
           id="comments-list"
           class="comments-list"
         >
+
           <div class="empty-state">
-            <div class="empty-icon">💬</div>
+            <div class="empty-icon">
+              💬
+            </div>
 
             <h3>
               No comments yet
             </h3>
 
             <p>
-              Be the first person
-              to comment.
+              Be the first to comment.
             </p>
           </div>
+
         </div>
 
         <div
@@ -595,6 +560,7 @@ function openComments(post) {
             margin-top:18px;
           "
         >
+
           <input
             id="comment-input"
             class="form-input"
@@ -607,6 +573,7 @@ function openComments(post) {
           >
             Send
           </button>
+
         </div>
       `
     );
@@ -614,25 +581,21 @@ function openComments(post) {
   document.body.appendChild(modal);
 
   const input =
-    modal.querySelector(
-      "#comment-input"
-    );
+    modal.querySelector("#comment-input");
 
   const send =
-    modal.querySelector(
-      "#comment-send"
-    );
+    modal.querySelector("#comment-send");
 
   send.addEventListener(
     "click",
     () => {
 
-      const value =
+      const text =
         input.value.trim();
 
-      if (!value) {
+      if (!text) {
         showToast(
-          "Write something first",
+          "Write a comment first",
           "error"
         );
 
@@ -641,20 +604,16 @@ function openComments(post) {
 
       post.comments++;
 
-      input.value = "";
-
       saveState();
-
-      showToast(
-        "Comment added 💬"
-      );
 
       closeModal(modal);
 
       renderPosts(
-        filterPosts(
-          state.searchQuery
-        )
+        filterPosts(state.searchQuery)
+      );
+
+      showToast(
+        "Comment added 💬"
       );
     }
   );
@@ -662,7 +621,7 @@ function openComments(post) {
 
 
 /* =========================================================
-   PLAY VIDEO
+   VIDEO
    ========================================================= */
 
 function playVideo(post) {
@@ -675,21 +634,17 @@ function playVideo(post) {
           style="
             aspect-ratio:9/16;
             background:#050505;
-            border-radius:16px;
+            border-radius:18px;
             display:flex;
             align-items:center;
             justify-content:center;
-            position:relative;
-            overflow:hidden;
+            text-align:center;
+            padding:25px;
           "
         >
 
-          <div
-            style="
-              text-align:center;
-              padding:25px;
-            "
-          >
+          <div>
+
             <div
               style="
                 font-size:60px;
@@ -700,21 +655,19 @@ function playVideo(post) {
             </div>
 
             <h3>
-              ${escapeHTML(
-                post.user.name
-              )}
+              ${escapeHTML(post.user.name)}
             </h3>
 
             <p
               style="
                 color:#999;
-                margin-top:8px;
+                margin-top:10px;
+                line-height:1.6;
               "
             >
-              ${escapeHTML(
-                post.text
-              )}
+              ${escapeHTML(post.text)}
             </p>
+
           </div>
 
         </div>
@@ -744,22 +697,22 @@ function openPostMenu(post) {
         >
 
           <button
-            class="btn btn-outline w-full"
             id="copy-post"
+            class="btn btn-outline w-full"
           >
-            📋 Copy post
+            📋 Copy Post
           </button>
 
           <button
-            class="btn btn-outline w-full"
             id="report-post"
+            class="btn btn-outline w-full"
           >
-            🚩 Report post
+            🚩 Report Post
           </button>
 
           <button
+            id="close-menu"
             class="btn btn-outline w-full"
-            id="cancel-post-menu"
           >
             Cancel
           </button>
@@ -782,17 +735,17 @@ function openPostMenu(post) {
             post.text
           );
 
-          showToast(
-            "Post copied"
-          );
+          showToast("Post copied");
 
           closeModal(modal);
 
         } catch {
+
           showToast(
             "Could not copy post",
             "error"
           );
+
         }
       }
     );
@@ -812,26 +765,19 @@ function openPostMenu(post) {
     );
 
   modal
-    .querySelector(
-      "#cancel-post-menu"
-    )
+    .querySelector("#close-menu")
     .addEventListener(
       "click",
-      () => {
-        closeModal(modal);
-      }
+      () => closeModal(modal)
     );
 }
 
 
 /* =========================================================
-   CREATE MODAL
+   MODAL
    ========================================================= */
 
-function createModal(
-  title,
-  content
-) {
+function createModal(title, content) {
 
   const overlay =
     document.createElement("div");
@@ -886,8 +832,8 @@ function createModal(
   return overlay;
 }
 
-
 function closeModal(modal) {
+
   if (!modal) return;
 
   modal.remove();
@@ -906,9 +852,7 @@ function openCreatePost() {
       `
         <div class="form-group">
 
-          <label
-            class="form-label"
-          >
+          <label class="form-label">
             What's happening?
           </label>
 
@@ -920,29 +864,12 @@ function openCreatePost() {
 
         </div>
 
-        <div
-          style="
-            display:flex;
-            gap:10px;
-          "
+        <button
+          id="publish-post"
+          class="btn btn-primary w-full"
         >
-
-          <button
-            id="publish-post"
-            class="btn btn-primary"
-            style="flex:1;"
-          >
-            Publish
-          </button>
-
-          <button
-            id="cancel-create"
-            class="btn btn-outline"
-          >
-            Cancel
-          </button>
-
-        </div>
+          Publish Post
+        </button>
       `
     );
 
@@ -972,7 +899,7 @@ function openCreatePost() {
           return;
         }
 
-        const newPost = {
+        const post = {
           id:
             "post_" +
             Date.now(),
@@ -1005,9 +932,7 @@ function openCreatePost() {
           time: "now"
         };
 
-        state.posts.unshift(
-          newPost
-        );
+        state.posts.unshift(post);
 
         state.currentUser.posts++;
 
@@ -1022,17 +947,8 @@ function openCreatePost() {
         );
 
         showToast(
-          "Post published successfully 🎉"
+          "Post published 🎉"
         );
-      }
-    );
-
-  modal
-    .querySelector("#cancel-create")
-    .addEventListener(
-      "click",
-      () => {
-        closeModal(modal);
       }
     );
 }
@@ -1042,40 +958,10 @@ function openCreatePost() {
    SEARCH
    ========================================================= */
 
-function filterPosts(query) {
-
-  const clean =
-    String(query || "")
-      .trim()
-      .toLowerCase();
-
-  if (!clean) {
-    return state.posts;
-  }
-
-  return state.posts.filter(
-    post =>
-      post.text
-        .toLowerCase()
-        .includes(clean) ||
-
-      post.user.name
-        .toLowerCase()
-        .includes(clean) ||
-
-      post.user.username
-        .toLowerCase()
-        .includes(clean)
-  );
-}
-
-
 function setupSearch() {
 
   const input =
-    document.querySelector(
-      ".search-box input"
-    );
+    $(".search-box input");
 
   if (!input) return;
 
@@ -1110,9 +996,7 @@ function openLogin() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
+            <label class="form-label">
               Email
             </label>
 
@@ -1128,9 +1012,7 @@ function openLogin() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
+            <label class="form-label">
               Password
             </label>
 
@@ -1138,15 +1020,15 @@ function openLogin() {
               id="login-password"
               type="password"
               class="form-input"
-              placeholder="Your password"
+              placeholder="Password"
               required
             />
 
           </div>
 
           <button
-            class="btn btn-primary w-full"
             type="submit"
+            class="btn btn-primary w-full"
           >
             Login
           </button>
@@ -1171,11 +1053,11 @@ function openLogin() {
 
         closeModal(modal);
 
+        updateAuthUI();
+
         showToast(
           "Login successful 👋"
         );
-
-        updateAuthUI();
       }
     );
 }
@@ -1195,10 +1077,8 @@ function openSignup() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
-              Full name
+            <label class="form-label">
+              Full Name
             </label>
 
             <input
@@ -1212,9 +1092,7 @@ function openSignup() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
+            <label class="form-label">
               Username
             </label>
 
@@ -1229,9 +1107,7 @@ function openSignup() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
+            <label class="form-label">
               Email
             </label>
 
@@ -1247,9 +1123,7 @@ function openSignup() {
 
           <div class="form-group">
 
-            <label
-              class="form-label"
-            >
+            <label class="form-label">
               Password
             </label>
 
@@ -1257,15 +1131,16 @@ function openSignup() {
               id="signup-password"
               type="password"
               class="form-input"
-              placeholder="Create a password"
+              placeholder="Create password"
+              minlength="6"
               required
             />
 
           </div>
 
           <button
-            class="btn btn-primary w-full"
             type="submit"
+            class="btn btn-primary w-full"
           >
             Create Account
           </button>
@@ -1286,21 +1161,20 @@ function openSignup() {
 
         const name =
           modal
-            .querySelector(
-              "#signup-name"
-            )
-            .value.trim();
+            .querySelector("#signup-name")
+            .value
+            .trim();
 
         const username =
           modal
-            .querySelector(
-              "#signup-username"
-            )
-            .value.trim();
+            .querySelector("#signup-username")
+            .value
+            .trim();
 
         if (!name || !username) {
+
           showToast(
-            "Please complete all fields",
+            "Complete all fields",
             "error"
           );
 
@@ -1318,10 +1192,7 @@ function openSignup() {
         state.currentUser.avatar =
           name
             .split(" ")
-            .map(
-              word =>
-                word[0]
-            )
+            .map(word => word[0])
             .join("")
             .substring(0, 2)
             .toUpperCase();
@@ -1335,122 +1206,10 @@ function openSignup() {
         updateAuthUI();
 
         showToast(
-          "Account created successfully 🎉"
+          "Account created 🎉"
         );
       }
     );
-}
-
-
-/* =========================================================
-   AUTH UI
-   ========================================================= */
-
-function updateAuthUI() {
-
-  const loginButton =
-    document.querySelector(
-      "[data-action='login']"
-    );
-
-  const signupButton =
-    document.querySelector(
-      "[data-action='signup']"
-    );
-
-  if (
-    state.isLoggedIn
-  ) {
-
-    if (loginButton) {
-      loginButton.textContent =
-        "Profile";
-    }
-
-    if (signupButton) {
-      signupButton.textContent =
-        "Create Post";
-
-      signupButton.dataset.action =
-        "create-post";
-    }
-
-  } else {
-
-    if (loginButton) {
-      loginButton.textContent =
-        "Login";
-    }
-
-    if (signupButton) {
-      signupButton.textContent =
-        "Join TalkLife";
-    }
-  }
-}
-
-
-/* =========================================================
-   GLOBAL CLICK HANDLER
-   ========================================================= */
-
-function setupGlobalActions() {
-
-  document.addEventListener(
-    "click",
-    event => {
-
-      const target =
-        event.target.closest(
-          "[data-action]"
-        );
-
-      if (!target) return;
-
-      const action =
-        target.dataset.action;
-
-      if (
-        action === "create-post"
-      ) {
-        openCreatePost();
-      }
-
-      if (
-        action === "login"
-      ) {
-        openLogin();
-      }
-
-      if (
-        action === "signup"
-      ) {
-        openSignup();
-      }
-
-      if (
-        action === "profile"
-      ) {
-        openProfile();
-      }
-
-      if (
-        action === "logout"
-      ) {
-
-        state.isLoggedIn =
-          false;
-
-        saveState();
-
-        updateAuthUI();
-
-        showToast(
-          "You have been logged out"
-        );
-      }
-    }
-  );
 }
 
 
@@ -1467,11 +1226,7 @@ function openProfile() {
     createModal(
       "My Profile",
       `
-        <div
-          style="
-            text-align:center;
-          "
-        >
+        <div style="text-align:center;">
 
           <div
             class="profile-avatar"
@@ -1479,24 +1234,18 @@ function openProfile() {
               margin:0 auto 15px;
             "
           >
-            ${escapeHTML(
-              user.avatar
-            )}
+            ${escapeHTML(user.avatar)}
           </div>
 
           <h2>
-            ${escapeHTML(
-              user.name
-            )}
+            ${escapeHTML(user.name)}
           </h2>
 
           <p
             class="text-muted"
             style="margin-top:5px;"
           >
-            ${escapeHTML(
-              user.username
-            )}
+            ${escapeHTML(user.username)}
           </p>
 
           <p
@@ -1506,9 +1255,7 @@ function openProfile() {
               line-height:1.6;
             "
           >
-            ${escapeHTML(
-              user.bio
-            )}
+            ${escapeHTML(user.bio)}
           </p>
 
           <div
@@ -1570,6 +1317,63 @@ function openProfile() {
 
 
 /* =========================================================
+   LOGOUT
+   ========================================================= */
+
+function logout() {
+
+  state.isLoggedIn = false;
+
+  saveState();
+
+  updateAuthUI();
+
+  showToast(
+    "You have been logged out"
+  );
+}
+
+
+/* =========================================================
+   AUTH UI
+   ========================================================= */
+
+function updateAuthUI() {
+
+  const login =
+    $("[data-action='login']");
+
+  const signup =
+    $("[data-action='signup']");
+
+  if (state.isLoggedIn) {
+
+    if (login) {
+      login.textContent = "Profile";
+      login.dataset.action = "profile";
+    }
+
+    if (signup) {
+      signup.textContent = "Create Post";
+      signup.dataset.action = "create-post";
+    }
+
+  } else {
+
+    if (login) {
+      login.textContent = "Login";
+      login.dataset.action = "login";
+    }
+
+    if (signup) {
+      signup.textContent = "Join TalkLife";
+      signup.dataset.action = "signup";
+    }
+  }
+}
+
+
+/* =========================================================
    AI VIDEOS
    ========================================================= */
 
@@ -1577,6 +1381,7 @@ const aiVideos = [
   {
     title:
       "When AI tries Nigerian slang 😂",
+
     description:
       "Funny AI-generated entertainment."
   },
@@ -1584,13 +1389,15 @@ const aiVideos = [
   {
     title:
       "AI becomes a Nigerian comedian 🤣",
+
     description:
-      "A creative AI comedy concept."
+      "Creative AI comedy content."
   },
 
   {
     title:
       "When your phone knows everything 😂",
+
     description:
       "Funny technology concept."
   },
@@ -1598,13 +1405,15 @@ const aiVideos = [
   {
     title:
       "AI at a Nigerian wedding 😂",
+
     description:
-      "Comedy concept generated for TalkLife."
+      "Creative AI comedy concept."
   },
 
   {
     title:
       "When your friend owes you money 😭😂",
+
     description:
       "Relatable comedy content."
   }
@@ -1614,9 +1423,7 @@ const aiVideos = [
 function renderAIVideos() {
 
   const container =
-    document.querySelector(
-      ".ai-video-grid"
-    );
+    $(".ai-video-grid");
 
   if (!container) return;
 
@@ -1626,7 +1433,6 @@ function renderAIVideos() {
         (video, index) => `
           <div
             class="ai-video-card"
-            data-ai-video="${index}"
           >
 
             <div
@@ -1648,15 +1454,11 @@ function renderAIVideos() {
             >
 
               <h3>
-                ${escapeHTML(
-                  video.title
-                )}
+                ${escapeHTML(video.title)}
               </h3>
 
               <p>
-                ${escapeHTML(
-                  video.description
-                )}
+                ${escapeHTML(video.description)}
               </p>
 
             </div>
@@ -1666,28 +1468,25 @@ function renderAIVideos() {
       )
       .join("");
 
-  container
-    .addEventListener(
-      "click",
-      event => {
+  container.addEventListener(
+    "click",
+    event => {
 
-        const button =
-          event.target.closest(
-            "[data-action='ai-video']"
-          );
-
-        if (!button) return;
-
-        const index =
-          Number(
-            button.dataset.index
-          );
-
-        openAIVideo(
-          aiVideos[index]
+      const button =
+        event.target.closest(
+          "[data-action='ai-video']"
         );
-      }
-    );
+
+      if (!button) return;
+
+      const index =
+        Number(button.dataset.index);
+
+      openAIVideo(
+        aiVideos[index]
+      );
+    }
+  );
 }
 
 
@@ -1705,7 +1504,7 @@ function openAIVideo(video) {
               linear-gradient(
                 145deg,
                 #101010,
-                #252525
+                #292929
               );
             display:flex;
             align-items:center;
@@ -1727,9 +1526,7 @@ function openAIVideo(video) {
             </div>
 
             <h3>
-              ${escapeHTML(
-                video.title
-              )}
+              ${escapeHTML(video.title)}
             </h3>
 
             <p
@@ -1739,9 +1536,7 @@ function openAIVideo(video) {
                 line-height:1.6;
               "
             >
-              ${escapeHTML(
-                video.description
-              )}
+              ${escapeHTML(video.description)}
             </p>
 
           </div>
@@ -1755,37 +1550,17 @@ function openAIVideo(video) {
 
 
 /* =========================================================
-   FOLLOW SYSTEM
-   ========================================================= */
-
-function followUser(
-  userName
-) {
-
-  state.currentUser.following++;
-
-  saveState();
-
-  showToast(
-    `You are now following ${userName}`
-  );
-}
-
-
-/* =========================================================
    TRENDING
    ========================================================= */
 
 function renderTrending() {
 
-  const trends =
-    document.querySelector(
-      ".trending-list"
-    );
+  const container =
+    $(".trending-list");
 
-  if (!trends) return;
+  if (!container) return;
 
-  const items = [
+  const trends = [
     ["#TalkLife", "12.4K posts"],
     ["#FunnyVideos", "8.7K posts"],
     ["#AI", "6.2K posts"],
@@ -1793,18 +1568,20 @@ function renderTrending() {
     ["#Technology", "4.1K posts"]
   ];
 
-  trends.innerHTML =
-    items
+  container.innerHTML =
+    trends
       .map(
-        item => `
+        trend => `
           <div class="trend">
+
             <strong>
-              ${escapeHTML(item[0])}
+              ${escapeHTML(trend[0])}
             </strong>
 
             <span>
-              ${escapeHTML(item[1])}
+              ${escapeHTML(trend[1])}
             </span>
+
           </div>
         `
       )
@@ -1813,10 +1590,58 @@ function renderTrending() {
 
 
 /* =========================================================
-   KEYBOARD SHORTCUTS
+   NAVIGATION
    ========================================================= */
 
-function setupKeyboardShortcuts() {
+function setupNavigation() {
+
+  $$(".nav a, .mobile-nav-item")
+    .forEach(item => {
+
+      item.addEventListener(
+        "click",
+        event => {
+
+          const page =
+            item.dataset.page;
+
+          if (!page) return;
+
+          event.preventDefault();
+
+          state.currentPage =
+            page;
+
+          $$(".nav a, .mobile-nav-item")
+            .forEach(element => {
+              element.classList.remove(
+                "active"
+              );
+            });
+
+          item.classList.add("active");
+
+          const section =
+            document.querySelector(
+              `[data-section="${page}"]`
+            );
+
+          if (section) {
+            section.scrollIntoView({
+              behavior: "smooth"
+            });
+          }
+        }
+      );
+    });
+}
+
+
+/* =========================================================
+   KEYBOARD
+   ========================================================= */
+
+function setupKeyboard() {
 
   document.addEventListener(
     "keydown",
@@ -1833,23 +1658,17 @@ function setupKeyboardShortcuts() {
         event.preventDefault();
 
         const search =
-          document.querySelector(
-            ".search-box input"
-          );
+          $(".search-box input");
 
         if (search) {
           search.focus();
         }
       }
 
-      if (
-        event.key === "Escape"
-      ) {
+      if (event.key === "Escape") {
 
         const modal =
-          document.querySelector(
-            ".modal-overlay"
-          );
+          $(".modal-overlay");
 
         if (modal) {
           closeModal(modal);
@@ -1880,26 +1699,24 @@ function initializeTalkLife() {
 
   setupSearch();
 
-  setupGlobalActions();
+  setupNavigation();
 
-  setupKeyboardShortcuts();
+  setupKeyboard();
 
   updateAuthUI();
 
   console.log(
-    "%cTalkLife loaded successfully 🚀",
-    "color:#ffd21f;font-size:16px;font-weight:bold;"
+    "TalkLife loaded successfully 🚀"
   );
 }
 
 
 /* =========================================================
-   START APP
+   START
    ========================================================= */
 
 if (
-  document.readyState ===
-  "loading"
+  document.readyState === "loading"
 ) {
 
   document.addEventListener(
